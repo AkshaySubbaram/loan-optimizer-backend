@@ -152,14 +152,16 @@ public class LoanService {
             String strategyName
     ) {
         double interestWithStrategy = result.getTotalPaid() - req.getLoanAmount();
-        return LoanResponse.builder()
-                .strategy(strategyName)
-                .emi(round(emi))
-                .totalInterestNormal(round(normalInterest))
-                .totalInterestWithExtra(round(interestWithStrategy))
-                .interestSaved(round(normalInterest - interestWithStrategy))
-                .tenureReducedMonths(req.getTenureMonths() - result.getMonths())
-                .build();
+
+        LoanResponse response = new LoanResponse();
+        response.setStrategy(strategyName);
+        response.setEmi(round(emi));
+        response.setTotalInterestNormal(round(normalInterest));
+        response.setTotalInterestWithExtra(round(interestWithStrategy));
+        response.setInterestSaved(round(normalInterest - interestWithStrategy));
+        response.setTenureReducedMonths(req.getTenureMonths() - result.getMonths());
+
+        return response;
     }
 
     // 6️⃣ Utility to round values
