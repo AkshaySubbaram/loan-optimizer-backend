@@ -1,14 +1,16 @@
-# Use Eclipse Temurin JDK 17 as the base image
-FROM eclipse-temurin:17-jdk-alpine
+# -------- Stage 1 --------
+FROM maven:3.9.9-eclipse-temurin-17 AS build
+WORKDIR /build
+COPY pom.xml .
+RUN mvn -B dependency:go-offline
+COPY src ./src
+RUN mvn -B clean package -DskipTests
 
-# Set a build argument for the JAR file (from Maven target)
-ARG JAR_FILE=target/*.jar
+# -------- Stage 2 --------
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=build /build/target/*.jar app.jar
 
-# Copy the Spring Boot JAR into the container
-COPY ${JAR_FILE} app.jar
-
-# Expose the port your Spring Boot app runs on
 EXPOSE 8080
 
-# Command to run the Spring Boot app
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+ENTRYPOINT ["java","-jar","app.jar"]

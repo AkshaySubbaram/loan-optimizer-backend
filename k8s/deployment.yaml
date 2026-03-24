@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loan-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loan-backend
+  template:
+    metadata:
+      labels:
+        app: loan-backend
+    spec:
+      containers:
+        - name: loan-backend
+          image: akshaysubbaram/loan-backend:latest
+          ports:
+            - containerPort: 9898
