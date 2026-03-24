@@ -30,11 +30,24 @@ jobs:
       - name: Push Docker Image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/loan-backend:latest
 
+      # ✅ Install kubectl
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      # ✅ Setup kubeconfig (base64)
       - name: Set up Kubeconfig
         run: |
           mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
+          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > $HOME/.kube/config
 
+      # ✅ Verify (optional but recommended)
+      - name: Verify cluster
+        run: kubectl get nodes
+
+      # ✅ Deploy
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f k8s/
