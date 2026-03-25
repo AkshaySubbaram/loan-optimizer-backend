@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: loan-backend-service
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: loan-backend
   ports:
