@@ -3,6 +3,7 @@ kind: Ingress
 metadata:
   name: loan-backend-ingress
 spec:
+  ingressClassName: nginx
   rules:
     - host: loan-backend.local
       http:
