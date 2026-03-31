@@ -1,0 +1,41 @@
+name: Create Tag
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [ "main", "master" ]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          git fetch --tags
+          tag=$(git describe --tags --abbrev=0 || echo "v0.0.0")
+          echo "TAG=$tag" >> $GITHUB_OUTPUT
+
+      - name: Increment version
+        id: increment
+        run: |
+          tag=${{ steps.get_tag.outputs.TAG }}
+          version=${tag#v}
+          IFS='.' read -r major minor patch <<< "$version"
+          patch=$((patch+1))
+          new_tag="v$major.$minor.$patch"
+          echo "NEW_TAG=$new_tag" >> $GITHUB_OUTPUT
+
+      - name: Create Tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git tag ${{ steps.increment.outputs.NEW_TAG }}
+          git push origin ${{ steps.increment.outputs.NEW_TAG }}
