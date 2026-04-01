@@ -12,9 +12,29 @@ public class ExpenseRequest {
 
     private Double emergencyFund = 0.0;
 
+    private Double emergencyFundTarget = 0.0;
+
+    private Integer emergencyFundMonths;
+
     private String riskProfile = "MEDIUM";
 
     private String goal = "BALANCE";
+
+    public Double getEmergencyFundTarget() {
+        return emergencyFundTarget;
+    }
+
+    public void setEmergencyFundTarget(Double emergencyFundTarget) {
+        this.emergencyFundTarget = emergencyFundTarget;
+    }
+
+    public Integer getEmergencyFundMonths() {
+        return emergencyFundMonths;
+    }
+
+    public void setEmergencyFundMonths(Integer emergencyFundMonths) {
+        this.emergencyFundMonths = emergencyFundMonths;
+    }
 
     public Double getMonthlyIncome() {
         return monthlyIncome;
