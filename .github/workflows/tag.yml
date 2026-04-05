@@ -3,7 +3,7 @@ name: Create Tag
 on:
   pull_request:
     types: [closed]
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
 
 permissions:
   contents: write
@@ -15,27 +15,47 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch full history so all tags are available
 
-      - name: Get latest tag
-        id: get_tag
-        run: |
-          git fetch --tags
-          tag=$(git describe --tags --abbrev=0 || echo "v0.0.0")
-          echo "TAG=$tag" >> $GITHUB_OUTPUT
-
-      - name: Increment version
-        id: increment
-        run: |
-          tag=${{ steps.get_tag.outputs.TAG }}
-          version=${tag#v}
-          IFS='.' read -r major minor patch <<< "$version"
-          patch=$((patch+1))
-          new_tag="v$major.$minor.$patch"
-          echo "NEW_TAG=$new_tag" >> $GITHUB_OUTPUT
-
-      - name: Create Tag
+      - name: Set up Git
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git tag ${{ steps.increment.outputs.NEW_TAG }}
-          git push origin ${{ steps.increment.outputs.NEW_TAG }}
+
+      - name: Increment version safely
+        id: increment
+        run: |
+          set -e
+
+          # Retry logic in case of race conditions
+          for i in {1..5}; do
+            echo "Attempt $i to create a new tag..."
+
+            git fetch --tags
+
+            # Get the latest tag or default to v0.0.0
+            latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            echo "Latest tag: $latest_tag"
+
+            version=${latest_tag#v}
+            IFS='.' read -r major minor patch <<< "$version"
+            patch=$((patch+1))
+            new_tag="v$major.$minor.$patch"
+            echo "Trying new tag: $new_tag"
+
+            # Check if tag already exists on remote
+            if git ls-remote --tags origin | grep -q "refs/tags/$new_tag"; then
+              echo "Tag $new_tag already exists remotely, retrying..."
+              patch=$((patch+1))
+              new_tag="v$major.$minor.$patch"
+              continue
+            fi
+
+            # Create and push tag
+            git tag "$new_tag"
+            git push origin "$new_tag"
+            echo "Tag $new_tag created successfully!"
+            echo "NEW_TAG=$new_tag" >> $GITHUB_OUTPUT
+            break
+          done
