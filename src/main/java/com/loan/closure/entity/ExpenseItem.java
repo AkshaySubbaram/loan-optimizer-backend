@@ -1,10 +1,20 @@
 package com.loan.closure.entity;
 
+import java.math.BigDecimal;
+
 public class ExpenseItem {
 
     private String name;
 
-    private Double amount;
+    private BigDecimal amount;
+
+    public ExpenseItem() {
+    }
+
+    public ExpenseItem(String name, BigDecimal amount) {
+        this.name = name;
+        this.amount = amount;
+    }
 
     public String getName() {
         return name;
@@ -14,12 +24,11 @@ public class ExpenseItem {
         this.name = name;
     }
 
-    public Double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(Double amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
-
 }

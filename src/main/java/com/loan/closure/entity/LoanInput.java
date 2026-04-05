@@ -1,24 +1,30 @@
 package com.loan.closure.entity;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+import java.math.BigDecimal;
+
 public class LoanInput {
 
+    @NotBlank
     private String loanName;
 
-    private double loanAmount;
+    @NotNull
+    @DecimalMin(value = "1.0", message = "Loan amount must be greater than 0")
+    private BigDecimal loanAmount;
 
-    private double interestRate;
+    @NotNull
+    @DecimalMin(value = "0.1", message = "Interest rate must be greater than 0")
+    private BigDecimal interestRate;
 
+    @NotNull
+    @Min(value = 1, message = "Tenure must be at least 1 month")
     private int tenureMonths;
 
     private Integer priority; // optional (1 = highest)
-
-    public Integer getPriority() {
-        return priority;
-    }
-
-    public void setPriority(Integer priority) {
-        this.priority = priority;
-    }
 
     public String getLoanName() {
         return loanName;
@@ -28,19 +34,19 @@ public class LoanInput {
         this.loanName = loanName;
     }
 
-    public double getLoanAmount() {
+    public BigDecimal getLoanAmount() {
         return loanAmount;
     }
 
-    public void setLoanAmount(double loanAmount) {
+    public void setLoanAmount(BigDecimal loanAmount) {
         this.loanAmount = loanAmount;
     }
 
-    public double getInterestRate() {
+    public BigDecimal getInterestRate() {
         return interestRate;
     }
 
-    public void setInterestRate(double interestRate) {
+    public void setInterestRate(BigDecimal interestRate) {
         this.interestRate = interestRate;
     }
 
@@ -50,6 +56,14 @@ public class LoanInput {
 
     public void setTenureMonths(int tenureMonths) {
         this.tenureMonths = tenureMonths;
+    }
+
+    public Integer getPriority() {
+        return priority;
+    }
+
+    public void setPriority(Integer priority) {
+        this.priority = priority;
     }
 
 }

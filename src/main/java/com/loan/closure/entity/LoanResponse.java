@@ -1,18 +1,20 @@
 package com.loan.closure.entity;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import java.math.BigDecimal;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class LoanResponse {
 
-    private double emi;
+    private BigDecimal emi;
 
-    private double totalInterestNormal;
+    private BigDecimal totalInterestNormal;
 
-    private double totalInterestWithExtra;
+    private BigDecimal totalInterestWithExtra;
 
-    private double interestSaved;
+    private BigDecimal interestSaved;
 
     private int tenureReducedMonths;
 
@@ -20,35 +22,35 @@ public class LoanResponse {
 
     private List<AmortizationEntry> amortization;
 
-    public double getEmi() {
+    public BigDecimal getEmi() {
         return emi;
     }
 
-    public void setEmi(double emi) {
+    public void setEmi(BigDecimal emi) {
         this.emi = emi;
     }
 
-    public double getTotalInterestNormal() {
+    public BigDecimal getTotalInterestNormal() {
         return totalInterestNormal;
     }
 
-    public void setTotalInterestNormal(double totalInterestNormal) {
+    public void setTotalInterestNormal(BigDecimal totalInterestNormal) {
         this.totalInterestNormal = totalInterestNormal;
     }
 
-    public double getTotalInterestWithExtra() {
+    public BigDecimal getTotalInterestWithExtra() {
         return totalInterestWithExtra;
     }
 
-    public void setTotalInterestWithExtra(double totalInterestWithExtra) {
+    public void setTotalInterestWithExtra(BigDecimal totalInterestWithExtra) {
         this.totalInterestWithExtra = totalInterestWithExtra;
     }
 
-    public double getInterestSaved() {
+    public BigDecimal getInterestSaved() {
         return interestSaved;
     }
 
-    public void setInterestSaved(double interestSaved) {
+    public void setInterestSaved(BigDecimal interestSaved) {
         this.interestSaved = interestSaved;
     }
 
