@@ -14,41 +14,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      # Step 1: Checkout full repository history
+      - name: Checkout repository
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Fetch full history so all tags are available
 
+      # Step 2: Set up Git for tagging
       - name: Set up Git
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
+      # Step 3: Create a unique incremented tag
       - name: Increment version safely
         id: increment
         run: |
           set -euo pipefail
 
+          # Ensure full history and all tags
+          git fetch --prune --unshallow origin || true
+          git fetch --tags origin
+
           for i in {1..10}; do
             echo "Attempt $i to create a new tag..."
 
-            git fetch --tags
-
+            # Get the latest tag from local after fetching remote
             latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
             echo "Latest tag: $latest_tag"
 
+            # Split version into major.minor.patch
             version=${latest_tag#v}
             IFS='.' read -r major minor patch <<< "$version"
             patch=$((patch+1))
             new_tag="v$major.$minor.$patch"
             echo "Trying new tag: $new_tag"
 
-            # Skip if tag exists remotely
+            # Check remote to avoid duplicates
             if git ls-remote --tags origin | grep -q "refs/tags/$new_tag"; then
               echo "Tag $new_tag already exists remotely, retrying..."
               continue
             fi
 
-            # Create and push
+            # Create and push the new tag
             git tag "$new_tag"
             git push origin "$new_tag"
             echo "Tag $new_tag created successfully!"
