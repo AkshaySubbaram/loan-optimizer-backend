@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Fetch full history so all tags are available
+          fetch-depth: 0
 
       - name: Set up Git
         run: |
@@ -26,15 +26,13 @@ jobs:
       - name: Increment version safely
         id: increment
         run: |
-          set -e
+          set -euo pipefail
 
-          # Retry logic in case of race conditions
-          for i in {1..5}; do
+          for i in {1..10}; do
             echo "Attempt $i to create a new tag..."
 
             git fetch --tags
 
-            # Get the latest tag or default to v0.0.0
             latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
             echo "Latest tag: $latest_tag"
 
@@ -44,15 +42,13 @@ jobs:
             new_tag="v$major.$minor.$patch"
             echo "Trying new tag: $new_tag"
 
-            # Check if tag already exists on remote
+            # Skip if tag exists remotely
             if git ls-remote --tags origin | grep -q "refs/tags/$new_tag"; then
               echo "Tag $new_tag already exists remotely, retrying..."
-              patch=$((patch+1))
-              new_tag="v$major.$minor.$patch"
               continue
             fi
 
-            # Create and push tag
+            # Create and push
             git tag "$new_tag"
             git push origin "$new_tag"
             echo "Tag $new_tag created successfully!"
