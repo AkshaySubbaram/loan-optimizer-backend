@@ -1,12 +1,14 @@
 package com.loan.closure.entity;
 
+import java.math.BigDecimal;
+
 public class SimulationResult {
 
     private int months;
 
-    private double totalPaid;
+    private BigDecimal totalPaid;
 
-    public SimulationResult(int months, double totalPaid) {
+    public SimulationResult(int months, BigDecimal totalPaid) {
         this.months = months;
         this.totalPaid = totalPaid;
     }
@@ -19,12 +21,11 @@ public class SimulationResult {
         this.months = months;
     }
 
-    public double getTotalPaid() {
+    public BigDecimal getTotalPaid() {
         return totalPaid;
     }
 
-    public void setTotalPaid(double totalPaid) {
+    public void setTotalPaid(BigDecimal totalPaid) {
         this.totalPaid = totalPaid;
     }
-
 }

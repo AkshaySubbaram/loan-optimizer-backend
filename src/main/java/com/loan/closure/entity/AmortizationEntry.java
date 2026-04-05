@@ -1,16 +1,18 @@
 package com.loan.closure.entity;
 
+import java.math.BigDecimal;
+
 public class AmortizationEntry {
 
     private int month;
 
-    private double principalPaid;
+    private BigDecimal principalPaid;
 
-    private double interestPaid;
+    private BigDecimal interestPaid;
 
-    private double balance;
+    private BigDecimal balance;
 
-    public AmortizationEntry(int month, double principalPaid, double interestPaid, double balance) {
+    public AmortizationEntry(int month, BigDecimal principalPaid, BigDecimal interestPaid, BigDecimal balance) {
         this.month = month;
         this.principalPaid = principalPaid;
         this.interestPaid = interestPaid;
@@ -25,28 +27,27 @@ public class AmortizationEntry {
         this.month = month;
     }
 
-    public double getPrincipalPaid() {
+    public BigDecimal getPrincipalPaid() {
         return principalPaid;
     }
 
-    public void setPrincipalPaid(double principalPaid) {
+    public void setPrincipalPaid(BigDecimal principalPaid) {
         this.principalPaid = principalPaid;
     }
 
-    public double getInterestPaid() {
+    public BigDecimal getInterestPaid() {
         return interestPaid;
     }
 
-    public void setInterestPaid(double interestPaid) {
+    public void setInterestPaid(BigDecimal interestPaid) {
         this.interestPaid = interestPaid;
     }
 
-    public double getBalance() {
+    public BigDecimal getBalance() {
         return balance;
     }
 
-    public void setBalance(double balance) {
+    public void setBalance(BigDecimal balance) {
         this.balance = balance;
     }
-
 }

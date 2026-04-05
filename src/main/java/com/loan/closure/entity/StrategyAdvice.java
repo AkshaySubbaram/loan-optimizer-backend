@@ -1,18 +1,20 @@
 package com.loan.closure.entity;
 
+import java.math.BigDecimal;
+
 public class StrategyAdvice {
 
-    private double extraEmiRecommended;
+    private BigDecimal extraEmiRecommended;
 
     private String partPaymentPlan;
 
     private String summary;
 
-    public double getExtraEmiRecommended() {
+    public BigDecimal getExtraEmiRecommended() {
         return extraEmiRecommended;
     }
 
-    public void setExtraEmiRecommended(double extraEmiRecommended) {
+    public void setExtraEmiRecommended(BigDecimal extraEmiRecommended) {
         this.extraEmiRecommended = extraEmiRecommended;
     }
 

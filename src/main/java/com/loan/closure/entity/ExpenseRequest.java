@@ -1,18 +1,19 @@
 package com.loan.closure.entity;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public class ExpenseRequest {
 
-    private Double monthlyIncome;
+    private BigDecimal monthlyIncome;
 
     private List<ExpenseItem> expenses;
 
     private List<LoanInput> loans;
 
-    private Double emergencyFund = 0.0;
+    private BigDecimal emergencyFund = BigDecimal.ZERO;
 
-    private Double emergencyFundTarget = 0.0;
+    private BigDecimal emergencyFundTarget = BigDecimal.ZERO;
 
     private Integer emergencyFundMonths;
 
@@ -20,27 +21,11 @@ public class ExpenseRequest {
 
     private String goal = "BALANCE";
 
-    public Double getEmergencyFundTarget() {
-        return emergencyFundTarget;
-    }
-
-    public void setEmergencyFundTarget(Double emergencyFundTarget) {
-        this.emergencyFundTarget = emergencyFundTarget;
-    }
-
-    public Integer getEmergencyFundMonths() {
-        return emergencyFundMonths;
-    }
-
-    public void setEmergencyFundMonths(Integer emergencyFundMonths) {
-        this.emergencyFundMonths = emergencyFundMonths;
-    }
-
-    public Double getMonthlyIncome() {
+    public BigDecimal getMonthlyIncome() {
         return monthlyIncome;
     }
 
-    public void setMonthlyIncome(Double monthlyIncome) {
+    public void setMonthlyIncome(BigDecimal monthlyIncome) {
         this.monthlyIncome = monthlyIncome;
     }
 
@@ -52,12 +37,36 @@ public class ExpenseRequest {
         this.expenses = expenses;
     }
 
-    public Double getEmergencyFund() {
+    public List<LoanInput> getLoans() {
+        return loans;
+    }
+
+    public void setLoans(List<LoanInput> loans) {
+        this.loans = loans;
+    }
+
+    public BigDecimal getEmergencyFund() {
         return emergencyFund;
     }
 
-    public void setEmergencyFund(Double emergencyFund) {
+    public void setEmergencyFund(BigDecimal emergencyFund) {
         this.emergencyFund = emergencyFund;
+    }
+
+    public BigDecimal getEmergencyFundTarget() {
+        return emergencyFundTarget;
+    }
+
+    public void setEmergencyFundTarget(BigDecimal emergencyFundTarget) {
+        this.emergencyFundTarget = emergencyFundTarget;
+    }
+
+    public Integer getEmergencyFundMonths() {
+        return emergencyFundMonths;
+    }
+
+    public void setEmergencyFundMonths(Integer emergencyFundMonths) {
+        this.emergencyFundMonths = emergencyFundMonths;
     }
 
     public String getRiskProfile() {
@@ -75,13 +84,4 @@ public class ExpenseRequest {
     public void setGoal(String goal) {
         this.goal = goal;
     }
-
-    public List<LoanInput> getLoans() {
-        return loans;
-    }
-
-    public void setLoans(List<LoanInput> loans) {
-        this.loans = loans;
-    }
-
 }
