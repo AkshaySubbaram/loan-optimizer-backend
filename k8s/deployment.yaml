@@ -2,36 +2,66 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loan-backend
+  labels:
+    app: loan-backend
 spec:
   replicas: 2
+
   selector:
     matchLabels:
       app: loan-backend
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+
   template:
     metadata:
       labels:
         app: loan-backend
+
     spec:
       containers:
         - name: loan-backend
-          image: akshaysubbaram/loan-backend
-          imagePullPolicy: Always
+          image: loan-backend:latest
+          imagePullPolicy: Never
+
           ports:
             - containerPort: 9898
 
-          livenessProbe:
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+
+          # 🚀 STARTUP PROBE (prevents early failure)
+          startupProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /actuator/health
               port: 9898
-            initialDelaySeconds: 30
+            failureThreshold: 30
             periodSeconds: 10
 
+          # ❤️ LIVENESS PROBE
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 9898
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # ✅ READINESS PROBE
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /actuator/health
               port: 9898
-            initialDelaySeconds: 10
-            periodSeconds: 5
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
 
           resources:
             requests:
