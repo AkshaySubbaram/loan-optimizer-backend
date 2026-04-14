@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -15,6 +17,7 @@ public class StrategyFacadeService {
     private static final Logger log = LoggerFactory.getLogger(StrategyFacadeService.class);
 
     private final LoanService loanService;
+
     private final ExpenseStrategyService expenseService;
 
     public StrategyFacadeService(LoanService loanService, ExpenseStrategyService expenseService) {
@@ -55,10 +58,9 @@ public class StrategyFacadeService {
                     expReq.getMonthlyIncome(), totalExpenses, totalLoanEMI,
                     monthlyEmergencyContribution, disposable);
 
-            if (disposable.compareTo(BigDecimal.ZERO) <= 0) {
-                log.error("Disposable income is negative. Strategy cannot proceed.");
-                throw new RuntimeException("Expenses + EMIs exceed income.");
-            }
+            final BigDecimal disposableForUse = disposable.compareTo(BigDecimal.ZERO) <= 0
+                    ? BigDecimal.ZERO
+                    : disposable;
 
             List<LoanRequest> loanRequests =
                     expenseService.buildLoanRequestsFromExpense(expReq);
@@ -77,7 +79,7 @@ public class StrategyFacadeService {
                         loanService.calculateAllStrategies(loanReq, false);
 
                 List<LoanResponse> filtered = strategies.stream()
-                        .filter(s -> isAffordable(s, loanReq, disposable, expReq))
+                        .filter(s -> isAffordable(s, loanReq, disposableForUse, expReq))
                         .toList();
 
                 List<LoanResponse> finalList =
@@ -87,13 +89,27 @@ public class StrategyFacadeService {
                         pickBestStrategy(finalList, expReq, loanReq);
 
                 log.debug("Best strategy for loan: {} | InterestSaved={}",
-                        best.getStrategy(), best.getInterestSaved());
+                        best != null ? best.getStrategy() : "NONE",
+                        best != null ? best.getInterestSaved() : BigDecimal.ZERO);
 
                 allStrategies.addAll(strategies);
 
-                if (bestOverall == null ||
-                        best.getInterestSaved().compareTo(bestOverall.getInterestSaved()) > 0) {
-                    bestOverall = best;
+                if (best != null) {
+                    if (bestOverall == null ||
+                            best.getInterestSaved().compareTo(bestOverall.getInterestSaved()) > 0) {
+                        bestOverall = best;
+                    } else if (best.getInterestSaved().compareTo(bestOverall.getInterestSaved()) == 0 &&
+                               loanReq.getInterestRate() != null && bestOverall.getLoanName() != null) {
+                        // If interest saved is equal, pick the one with higher interest rate (priority)
+                        final String bestOverallLoanName = bestOverall.getLoanName();
+                        LoanInput bestLoan = expReq.getLoans().stream()
+                                .filter(l -> l.getLoanName().equals(bestOverallLoanName))
+                                .findFirst()
+                                .orElse(null);
+                        if (bestLoan != null && loanReq.getInterestRate().compareTo(bestLoan.getInterestRate()) > 0) {
+                            bestOverall = best;
+                        }
+                    }
                 }
             }
 
@@ -102,6 +118,38 @@ public class StrategyFacadeService {
                     bestOverall != null ? bestOverall.getInterestSaved() : "0");
 
             StrategyResult result = new StrategyResult();
+
+            FinancialSummary fs = new FinancialSummary();
+            fs.setMonthlyIncome(safe(expReq.getMonthlyIncome()));
+            fs.setTotalExpenses(totalExpenses);
+            fs.setTotalLoanEmi(totalLoanEMI);
+            fs.setMonthlyEmergencyContribution(monthlyEmergencyContribution);
+            fs.setDisposableIncome(disposable);
+
+            List<FinancialSummary.PerLoanSummary> loanSums = new ArrayList<>();
+            for (LoanInput li : expReq.getLoans()) {
+                FinancialSummary.PerLoanSummary pls = new FinancialSummary.PerLoanSummary();
+                pls.setLoanName(li.getLoanName());
+                pls.setLoanAmount(safe(li.getLoanAmount()));
+                if (li.getSanctionDate() != null) {
+                    java.time.LocalDate now = java.time.LocalDate.now();
+                    java.time.LocalDate sanction = li.getSanctionDate();
+                    int monthsSince = java.time.Period.between(sanction, now).getYears() * 12 + java.time.Period.between(sanction, now).getMonths();
+                    pls.setMonthsSinceSanction(Math.max(monthsSince, 0));
+                    int remaining = li.getTenureMonths() - Math.max(monthsSince, 0);
+                    pls.setRemainingTenureMonths(Math.max(remaining, 0));
+                    pls.setSanctionDate(sanction.format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy")));
+                } else {
+                    pls.setSanctionDate(null);
+                    pls.setMonthsSinceSanction(null);
+                    pls.setRemainingTenureMonths(li.getTenureMonths());
+                }
+                loanSums.add(pls);
+            }
+
+            fs.setLoans(loanSums);
+
+            result.setFinancialSummary(fs);
             result.setRecommendedStrategy(bestOverall);
             result.setAllStrategies(allStrategies);
             result.setReason(buildReason(expReq, totalExpenses, totalLoanEMI, monthlyEmergencyContribution));
@@ -212,39 +260,40 @@ public class StrategyFacadeService {
         String risk = req.getRiskProfile() != null ? req.getRiskProfile().toUpperCase() : "MEDIUM";
 
         BigDecimal extraEmi;
-        BigDecimal savings;
+        BigDecimal savingsForPrepayment;
         String summary;
 
         switch (goal) {
             case "CLOSE_FAST":
                 extraEmi = disposable.multiply("HIGH".equals(risk) ? new BigDecimal("0.7") : new BigDecimal("0.6"));
-                savings = disposable.subtract(extraEmi);
+                savingsForPrepayment = disposable.subtract(extraEmi);
                 summary = "Aggressive repayment to close loan faster.";
                 break;
 
             case "LOW_EMI":
                 extraEmi = disposable.multiply("LOW".equals(risk) ? new BigDecimal("0.1") : new BigDecimal("0.2"));
-                savings = disposable.subtract(extraEmi);
-                summary = "Lower EMI, higher savings.";
+                savingsForPrepayment = disposable.subtract(extraEmi);
+                summary = "Lower EMI, higher savings for prepayment & emergencies.";
                 break;
 
             case "SAVE_INTEREST":
                 extraEmi = disposable.multiply(new BigDecimal("0.5"));
-                savings = disposable.subtract(extraEmi);
+                savingsForPrepayment = disposable.subtract(extraEmi);
                 summary = "Optimized for interest reduction.";
                 break;
 
             default:
                 extraEmi = disposable.multiply(new BigDecimal("0.4"));
-                savings = disposable.subtract(extraEmi);
+                savingsForPrepayment = disposable.subtract(extraEmi);
                 summary = "Balanced strategy.";
         }
 
         StrategyAdvice advice = new StrategyAdvice();
-        advice.setExtraEmiRecommended(BigDecimal.valueOf(extraEmi.setScale(0, RoundingMode.HALF_UP).longValue()));
+        advice.setExtraEmiRecommended(extraEmi.setScale(2, RoundingMode.HALF_UP));
+
         advice.setPartPaymentPlan(
-                "Save ₹" + savings.setScale(0, RoundingMode.HALF_UP) +
-                        "/month → ₹" + savings.multiply(BigDecimal.valueOf(6)).setScale(0, RoundingMode.HALF_UP)
+                "Save ₹" + savingsForPrepayment.setScale(0, RoundingMode.HALF_UP) +
+                        "/month → ₹" + savingsForPrepayment.multiply(BigDecimal.valueOf(6)).setScale(0, RoundingMode.HALF_UP)
                         + " every 6 months"
         );
         advice.setSummary(summary);
@@ -278,7 +327,10 @@ public class StrategyFacadeService {
         }
 
         if (req.getLoans().size() == 1) {
-            return List.of(req.getLoans().get(0).getLoanName() + " - Only loan");
+            LoanInput loan = req.getLoans().get(0);
+            int remainingMonths = computeRemainingTenure(loan);
+            BigDecimal emi = loanService.calculateEMI(loan.getLoanAmount(), loan.getInterestRate(), remainingMonths);
+            return List.of(loan.getLoanName() + " (" + loan.getInterestRate() + "%, " + remainingMonths + " months, EMI ₹" + emi.setScale(0, RoundingMode.HALF_UP) + ")");
         }
 
         boolean hasUserPriority = req.getLoans().stream()
@@ -300,11 +352,33 @@ public class StrategyFacadeService {
         int rank = 1;
 
         for (LoanInput loan : sortedLoans) {
+            int remainingMonths = computeRemainingTenure(loan);
+            BigDecimal emi = loanService.calculateEMI(loan.getLoanAmount(), loan.getInterestRate(), remainingMonths);
             result.add(rank++ + ". " + loan.getLoanName() +
-                    " (" + loan.getInterestRate() + "%)");
+                    " (" + loan.getInterestRate() + "%, " + remainingMonths + " months, EMI ₹" + emi.setScale(0, RoundingMode.HALF_UP) + ")");
         }
 
         return result;
+    }
+
+    private int computeRemainingTenure(LoanInput loan) {
+        if (loan.getSanctionDate() == null) return loan.getTenureMonths();
+
+        LocalDate sanction = loan.getSanctionDate();
+        LocalDate now = LocalDate.now();
+
+        if (now.isBefore(sanction)) {
+            return loan.getTenureMonths();
+        }
+
+        long monthsElapsed = ChronoUnit.MONTHS.between(sanction, now);
+
+        if (now.getDayOfMonth() < sanction.getDayOfMonth()) {
+            monthsElapsed--;
+        }
+
+        int remaining = loan.getTenureMonths() - (int) monthsElapsed;
+        return Math.max(remaining, 0);
     }
 
     private BigDecimal safe(BigDecimal value) {

@@ -9,7 +9,6 @@ import com.loan.closure.entity.StrategyResult;
 import com.loan.closure.service.LoanService;
 import com.loan.closure.service.StrategyFacadeService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -40,7 +39,7 @@ public class LoanController {
 
     @PostMapping("/summary")
     public List<LoanResponse> getLoanSummary(@Valid @RequestBody LoanRequest request) {
-        return loanService.calculateAllStrategies(request, false); // no amortization yet
+        return loanService.calculateAllStrategies(request, false);
     }
 
     @PostMapping("/amortization")
@@ -79,9 +78,13 @@ public class LoanController {
 
     @PostMapping("/download/pdf")
     public ResponseEntity<byte[]> downloadLoanPdf(@Valid @RequestBody LoanRequest request) {
-        List<LoanResponse> strategies = loanService.calculateAllStrategies(request, true);
 
-        byte[] fileBytes = pdfFileService.generateLoanPdfReport(strategies, request);
+        StrategyRequest strategyRequest = new StrategyRequest();
+        strategyRequest.setLoanRequest(request);
+
+        StrategyResult strategyResult = strategyFacadeService.calculateStrategy(strategyRequest);
+
+        byte[] fileBytes = pdfFileService.generateStrategyPdfReport(strategyResult);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=loan_report.pdf")

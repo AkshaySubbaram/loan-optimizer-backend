@@ -1,6 +1,7 @@
 package com.loan.closure.service;
 
 import com.loan.closure.entity.*;
+import com.loan.closure.exception.LoanCompletedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.*;
 
 @Service
@@ -46,13 +49,10 @@ public class LoanService {
         }
 
         BigDecimal monthlyRate = annualRate.divide(HUNDRED, MC).divide(TWELVE, MC);
-
         BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate);
         BigDecimal pow = onePlusR.pow(tenureMonths, MC);
-
         BigDecimal numerator = principal.multiply(monthlyRate).multiply(pow);
         BigDecimal denominator = pow.subtract(BigDecimal.ONE);
-
         BigDecimal emi = numerator.divide(denominator, 2, RoundingMode.HALF_UP);
 
         log.debug("EMI calculated={}", emi);
@@ -93,7 +93,6 @@ public class LoanService {
 
             BigDecimal interest = round2(principal.multiply(monthlyRate, MC));
             BigDecimal totalDue = round2(principal.add(interest));
-
             BigDecimal payment = emi.add(extraEmi);
 
             if (partPaymentMap.containsKey(months + 1)) {
@@ -134,7 +133,7 @@ public class LoanService {
 
     @Cacheable(
             value = "loanStrategies",
-            key = "#req.loanAmount + '-' + #req.interestRate + '-' + #req.tenureMonths + '-' + #req.extraEmi"
+            key = "#req.loanAmount + '-' + #req.interestRate + '-' + #req.tenureMonths + '-' + #req.extraEmi + '-' + #includeAmortization"
     )
     public List<LoanResponse> calculateAllStrategies(LoanRequest req, boolean includeAmortization) {
 
@@ -146,10 +145,59 @@ public class LoanService {
 
         List<LoanResponse> strategies = new ArrayList<>();
 
+        int remainingTenure = computeRemainingTenureMonths(req);
+
+        if (remainingTenure < 0) {
+            throw new LoanCompletedException("Loan has no remaining tenure based on sanction date (already completed)");
+        }
+
+        if (remainingTenure == 0) {
+            throw new LoanCompletedException("Loan has no remaining tenure (completed)");
+        }
+
+        if (remainingTenure == 1) {
+            log.info("Loan has only 1 remaining month - returning final EMI summary");
+
+            BigDecimal emi = calculateEMI(
+                    req.getLoanAmount(),
+                    req.getInterestRate(),
+                    remainingTenure
+            );
+
+            List<AmortizationEntry> a = includeAmortization ? new ArrayList<>() : null;
+
+            SimulationResult singleSim = simulateLoanStrategy(
+                    req.getLoanAmount(), emi, BigDecimal.ZERO,
+                    null, null, req.getInterestRate(), a
+            );
+
+            BigDecimal totalInterestNormal = round2(singleSim.getTotalPaid().subtract(req.getLoanAmount()));
+
+            LoanResponse finalResp = new LoanResponse();
+            finalResp.setStrategy("Final EMI");
+            finalResp.setEmi(round2(emi));
+            finalResp.setTotalInterestNormal(round0(totalInterestNormal));
+            finalResp.setTotalInterestWithExtra(round0(totalInterestNormal));
+            finalResp.setInterestSaved(BigDecimal.ZERO);
+            finalResp.setTenureReducedMonths(0);
+            finalResp.setAmortization(a);
+            finalResp.setLoanName(req.getLoanName());
+            finalResp.setExtraEmi(req.getExtraEmi() != null ? req.getExtraEmi().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
+            finalResp.setSuggestedMonthlyWithExtra(finalResp.getEmi().add(finalResp.getExtraEmi()));
+            finalResp.setPartPayments(req.getPartPayments());
+            finalResp.setPartPaymentMonths(req.getPartPaymentMonths());
+
+            strategies.add(finalResp);
+            log.info("Final EMI strategy generated");
+            return strategies;
+        }
+
+        log.debug("Using remaining tenure months for calculations: {} (original={})", remainingTenure, req.getTenureMonths());
+
         BigDecimal emi = calculateEMI(
                 req.getLoanAmount(),
                 req.getInterestRate(),
-                req.getTenureMonths()
+                remainingTenure
         );
 
         SimulationResult normalSim = simulateLoanStrategy(
@@ -167,21 +215,43 @@ public class LoanService {
 
         List<AmortizationEntry> a1 = includeAmortization ? new ArrayList<>() : null;
 
+        BigDecimal extraEmiForReq = req.getExtraEmi() != null ? req.getExtraEmi() : BigDecimal.ZERO;
+
         SimulationResult r1 = simulateLoanStrategy(
                 req.getLoanAmount(),
                 emi,
-                req.getExtraEmi(),
+                extraEmiForReq,
                 null,
                 null,
                 req.getInterestRate(),
                 a1
         );
 
+        if (req.getExtraEmi() == null){
+            req.setExtraEmi(extraEmiForReq);
+        }
+
         strategies.add(buildResponse(r1, req, emi, normalInterest, "Extra EMI Monthly", a1));
 
         log.info("Loan calculation completed");
 
         return strategies;
+    }
+
+    private int computeRemainingTenureMonths(LoanRequest req) {
+        if (req.getSanctionDate() == null) return req.getTenureMonths();
+
+        LocalDate sanction = req.getSanctionDate();
+        LocalDate now = LocalDate.now();
+
+        if (now.isBefore(sanction)) {
+            return req.getTenureMonths();
+        }
+
+        Period p = Period.between(sanction, now);
+        int monthsElapsed = p.getYears() * 12 + p.getMonths();
+
+        return req.getTenureMonths() - monthsElapsed; // can be negative; caller will handle
     }
 
     private LoanResponse buildResponse(
@@ -199,18 +269,24 @@ public class LoanService {
         LoanResponse response = new LoanResponse();
 
         response.setStrategy(strategyName);
-        response.setEmi(round0(emi));
+        response.setEmi(round2(emi));
         response.setTotalInterestNormal(round0(normalInterest));
         response.setTotalInterestWithExtra(round0(interestWithStrategy));
         response.setInterestSaved(
                 round0(normalInterest.subtract(interestWithStrategy))
         );
 
+        int remainingTenure = computeRemainingTenureMonths(req);
         response.setTenureReducedMonths(
-                req.getTenureMonths() - result.getMonths()
+                Math.max(0, remainingTenure - result.getMonths())
         );
 
         response.setAmortization(amortization);
+        response.setLoanName(req.getLoanName());
+        response.setExtraEmi(req.getExtraEmi() != null ? req.getExtraEmi().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
+        response.setSuggestedMonthlyWithExtra(response.getEmi().add(response.getExtraEmi()));
+        response.setPartPayments(req.getPartPayments());
+        response.setPartPaymentMonths(req.getPartPaymentMonths());
 
         log.debug("Response built: {}", response);
 

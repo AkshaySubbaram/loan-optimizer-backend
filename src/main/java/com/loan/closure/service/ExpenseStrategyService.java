@@ -7,7 +7,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
+import java.time.LocalDate;
+import java.time.Period;
+import java.util.*;
 import java.util.List;
 
 @Service
@@ -32,7 +34,7 @@ public class ExpenseStrategyService {
                 .map(loan -> loanService.calculateEMI(
                         loan.getLoanAmount(),
                         loan.getInterestRate(),
-                        loan.getTenureMonths()))
+                        computeRemainingTenureMonths(loan)))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal disposable = getDisposable(req, totalExpenses, totalLoanEMI);
@@ -131,7 +133,8 @@ public class ExpenseStrategyService {
             log.error("Disposable income is negative. Income={}, Expenses={}, EMI={}, Emergency={}",
                     req.getMonthlyIncome(), totalExpenses, totalLoanEMI, monthlyEmergencyContribution);
 
-            throw new RuntimeException("Expenses + EMIs + emergency fund exceed income.");
+            log.warn("Disposable income is non-positive ({}). Setting disposable to zero and proceeding.", disposable);
+            return BigDecimal.ZERO;
         }
 
         return disposable;
@@ -145,24 +148,50 @@ public class ExpenseStrategyService {
         List<LoanRequest> loanRequests = new ArrayList<>();
         int loanCount = sortedLoans.size();
 
+        Map<String, BigDecimal> loanEmiMap = new HashMap<>();
+        for (LoanInput loan : sortedLoans) {
+            int remainingTenure = computeRemainingTenureMonths(loan);
+            if (remainingTenure > 0) {
+                BigDecimal remainingPrincipal = calculateRemainingPrincipal(loan);
+                BigDecimal emi = loanService.calculateEMI(remainingPrincipal, loan.getInterestRate(), remainingTenure);
+                loanEmiMap.put(loan.getLoanName(), emi);
+            }
+        }
+
         for (int i = 0; i < loanCount; i++) {
 
             LoanInput loan = sortedLoans.get(i);
             BigDecimal loanExtraEmi;
 
-            if (i == 0) {
-                loanExtraEmi = totalExtraEmi.multiply(new BigDecimal("0.7"));
+            if (loanEmiMap.size() > 1) {
+                String highestEmiLoanName = loanEmiMap.entrySet().stream()
+                        .max(Comparator.comparing(Map.Entry::getValue))
+                        .map(Map.Entry::getKey)
+                        .orElse(null);
+
+                if (loan.getLoanName().equals(highestEmiLoanName)) {
+                    loanExtraEmi = totalExtraEmi.multiply(new BigDecimal("0.7"));
+                } else {
+                    loanExtraEmi = totalExtraEmi.multiply(new BigDecimal("0.3"))
+                            .divide(BigDecimal.valueOf((long) loanCount - 1), 2, RoundingMode.HALF_UP);
+                }
             } else {
-                loanExtraEmi = totalExtraEmi.multiply(new BigDecimal("0.3"))
-                        .divide(BigDecimal.valueOf(loanCount - 1), 2, RoundingMode.HALF_UP);
+                loanExtraEmi = totalExtraEmi;
             }
 
-            List<BigDecimal> partPayments = new ArrayList<>();
-            List<Integer> partMonths = new ArrayList<>();
+             List<BigDecimal> partPayments = new ArrayList<>();
+             List<Integer> partMonths = new ArrayList<>();
 
             BigDecimal accumulated = BigDecimal.ZERO;
 
-            for (int m = 1; m <= loan.getTenureMonths(); m++) {
+            int remainingTenure = computeRemainingTenureMonths(loan);
+
+            if (remainingTenure <= 0) {
+                log.info("Skipping loan {} as completed or no remaining tenure", loan.getLoanName());
+                continue;
+            }
+
+            for (int m = 1; m <= remainingTenure; m++) {
 
                 accumulated = accumulated.add(
                         monthlySavings.divide(BigDecimal.valueOf(loanCount), 2, RoundingMode.HALF_UP)
@@ -178,18 +207,81 @@ public class ExpenseStrategyService {
             log.debug("Loan [{}]: ExtraEMI={}, PartPaymentsCount={}",
                     loan.getLoanName(), loanExtraEmi, partPayments.size());
 
+            BigDecimal remainingPrincipal = calculateRemainingPrincipal(loan);
+
             LoanRequest lr = new LoanRequest();
-            lr.setLoanAmount(loan.getLoanAmount());
+            lr.setLoanAmount(remainingPrincipal);
             lr.setInterestRate(loan.getInterestRate());
-            lr.setTenureMonths(loan.getTenureMonths());
+            lr.setTenureMonths(remainingTenure);
             lr.setExtraEmi(loanExtraEmi.setScale(2, RoundingMode.HALF_UP));
             lr.setPartPayments(partPayments);
             lr.setPartPaymentMonths(partMonths);
+            lr.setLoanName(loan.getLoanName());
 
             loanRequests.add(lr);
         }
 
         return loanRequests;
+    }
+
+    private BigDecimal calculateRemainingPrincipal(LoanInput loan) {
+        if (loan.getSanctionDate() == null) {
+            return loan.getLoanAmount();
+        }
+
+        LocalDate sanction = loan.getSanctionDate();
+        LocalDate now = LocalDate.now();
+
+        if (now.isBefore(sanction)) {
+            return loan.getLoanAmount();
+        }
+
+        Period p = Period.between(sanction, now);
+        int monthsElapsed = p.getYears() * 12 + p.getMonths();
+        int originalTenure = loan.getTenureMonths();
+
+        if (monthsElapsed <= 0) {
+            return loan.getLoanAmount();
+        }
+
+        BigDecimal originalEmi = loanService.calculateEMI(loan.getLoanAmount(), loan.getInterestRate(), originalTenure);
+        BigDecimal monthlyRate = loan.getInterestRate().divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
+                .divide(new BigDecimal("12"), 10, RoundingMode.HALF_UP);
+
+        BigDecimal remainingPrincipal = loan.getLoanAmount();
+
+        for (int month = 0; month < monthsElapsed; month++) {
+            BigDecimal interest = remainingPrincipal.multiply(monthlyRate).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal principalPaid = originalEmi.subtract(interest).setScale(2, RoundingMode.HALF_UP);
+            remainingPrincipal = remainingPrincipal.subtract(principalPaid).setScale(2, RoundingMode.HALF_UP);
+
+            if (remainingPrincipal.compareTo(BigDecimal.ZERO) <= 0) {
+                remainingPrincipal = BigDecimal.ZERO;
+                break;
+            }
+        }
+
+        log.debug("Loan [{}]: Original Principal={}, Months Elapsed={}, Remaining Principal={}",
+                loan.getLoanName(), loan.getLoanAmount(), monthsElapsed, remainingPrincipal);
+
+        return remainingPrincipal.max(BigDecimal.ZERO);
+    }
+
+    private int computeRemainingTenureMonths(LoanInput loan) {
+        if (loan.getSanctionDate() == null) return loan.getTenureMonths();
+
+        LocalDate sanction = loan.getSanctionDate();
+        LocalDate now = LocalDate.now();
+
+        if (now.isBefore(sanction)) {
+            return loan.getTenureMonths();
+        }
+
+        Period p = Period.between(sanction, now);
+        int monthsElapsed = p.getYears() * 12 + p.getMonths();
+
+        int remaining = loan.getTenureMonths() - monthsElapsed;
+        return Math.max(remaining, 0);
     }
 
     private BigDecimal calculateTotalExpenses(List<ExpenseItem> expenses) {

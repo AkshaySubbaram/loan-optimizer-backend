@@ -35,17 +35,14 @@ class StrategyFacadeServiceTest {
         ExpenseRequest exp = sampleExpenseRequest();
         request.setExpenseRequest(exp);
 
-        // mock EMI (used in disposable calculation)
         when(loanService.calculateEMI(any(), any(), any()))
                 .thenReturn(BigDecimal.valueOf(10000));
 
-        // mock generated loan requests
         LoanRequest loanReq = sampleLoanRequest();
 
         when(expenseService.buildLoanRequestsFromExpense(any()))
                 .thenReturn(List.of(loanReq));
 
-        // mock strategies
         when(loanService.calculateAllStrategies(any(), eq(false)))
                 .thenReturn(sampleLoanResponses());
 
@@ -75,22 +72,27 @@ class StrategyFacadeServiceTest {
         assertEquals(2, result.getAllStrategies().size());
     }
 
-    // ✅ 3. Disposable Negative → Exception
+    // ✅ 3. Disposable Negative → Handle Gracefully (no exception)
     @Test
-    void shouldThrowExceptionWhenDisposableNegative() {
+    void shouldHandleNegativeDisposableGracefully() {
 
         StrategyRequest request = new StrategyRequest();
         request.setUseIncomeStrategy(true);
 
         ExpenseRequest exp = sampleExpenseRequest();
-        exp.setMonthlyIncome(BigDecimal.valueOf(1000)); // too low
+        exp.setMonthlyIncome(BigDecimal.valueOf(1000));
         request.setExpenseRequest(exp);
 
         when(loanService.calculateEMI(any(), any(), any()))
-                .thenReturn(BigDecimal.valueOf(50000)); // high EMI
+                .thenReturn(BigDecimal.valueOf(50000));
 
-        assertThrows(RuntimeException.class,
-                () -> facade.calculateStrategy(request));
+        StrategyResult result = assertDoesNotThrow(
+                () -> facade.calculateStrategy(request)
+        );
+
+        assertNotNull(result);
+        assertNotNull(result.getFinancialSummary());
+        assertTrue(result.getFinancialSummary().getDisposableIncome().compareTo(BigDecimal.ZERO) <= 0);
     }
 
     // ✅ 4. Best Strategy Selection
@@ -138,10 +140,6 @@ class StrategyFacadeServiceTest {
 
         assertFalse(result.getLoanPriority().isEmpty());
     }
-
-    // =========================
-    // 🔹 TEST DATA (INLINE — SAFE)
-    // =========================
 
     private ExpenseRequest sampleExpenseRequest() {
 

@@ -98,7 +98,6 @@ public class TextFileService {
 
             writer.write(String.format("Strategy %d: %s%n", i + 1, strategy.getStrategy()));
             writer.write(SUB_SEPARATOR + "\n");
-
             writer.write("Financial Impact:\n");
             writer.write(String.format("  ✓ Monthly EMI:                  ₹ %,d%n",
                     strategy.getEmi().setScale(0, RoundingMode.HALF_UP).longValue()));
@@ -108,7 +107,6 @@ public class TextFileService {
                     strategy.getTotalInterestWithExtra().setScale(0, RoundingMode.HALF_UP).longValue()));
             writer.write(String.format("  ✓ Interest Saved:               ₹ %,d%n",
                     strategy.getInterestSaved().setScale(0, RoundingMode.HALF_UP).longValue()));
-
             writer.write("\nTenure Impact:\n");
             writer.write(String.format("  ✓ Original Tenure:              %d months%n",
                     strategy.getTenureReducedMonths() > 0 ?
@@ -211,11 +209,13 @@ public class TextFileService {
             writer.write("Generated Date: " + LocalDate.now() + "\n");
             writer.write("Report Type: Income-Based Strategy Analysis\n\n");
 
+            writeFinancialSummary(writer, strategyResult);
             writeRecommendationSection(writer, strategyResult);
             writeReasoningSection(writer, strategyResult);
             writeAdviceSection(writer, strategyResult);
             writeLoanPrioritySection(writer, strategyResult);
             writeAllStrategiesComparison(writer, strategyResult);
+            writeDetailedStrategyAnalysis(writer, strategyResult);
             writeFooter(writer);
 
             writer.flush();
@@ -223,6 +223,39 @@ public class TextFileService {
 
         } catch (Exception e) {
             throw new RuntimeException("Error generating strategy report: " + e.getMessage(), e);
+        }
+    }
+
+    private void writeFinancialSummary(OutputStreamWriter writer, StrategyResult result) throws Exception {
+        if (result == null || result.getFinancialSummary() == null) return;
+
+        FinancialSummary fs = result.getFinancialSummary();
+
+        writer.write("📋 FINANCIAL SUMMARY\n");
+        writer.write(SUB_SEPARATOR + "\n");
+        writer.write(String.format("  Monthly Income:                ₹ %,d%n",
+                fs.getMonthlyIncome() != null ? fs.getMonthlyIncome().setScale(0, RoundingMode.HALF_UP).longValue() : 0));
+        writer.write(String.format("  Total Expenses:                ₹ %,d%n",
+                fs.getTotalExpenses() != null ? fs.getTotalExpenses().setScale(0, RoundingMode.HALF_UP).longValue() : 0));
+        writer.write(String.format("  Total Loan EMI:                ₹ %,d%n",
+                fs.getTotalLoanEmi() != null ? fs.getTotalLoanEmi().setScale(2, RoundingMode.HALF_UP).longValue() : 0));
+        writer.write(String.format("  Monthly Emergency Contribution: ₹ %,d%n",
+                fs.getMonthlyEmergencyContribution() != null ? fs.getMonthlyEmergencyContribution().setScale(0, RoundingMode.HALF_UP).longValue() : 0));
+        writer.write(String.format("  Disposable Income:             ₹ %,d%n\n",
+                fs.getDisposableIncome() != null ? fs.getDisposableIncome().setScale(2, RoundingMode.HALF_UP).longValue() : 0));
+
+        if (fs.getLoans() != null && !fs.getLoans().isEmpty()) {
+            writer.write("Loans:\n");
+            for (FinancialSummary.PerLoanSummary pls : fs.getLoans()) {
+                writer.write(String.format("  - %s: ₹ %,d | Sanction: %s | Months Since: %s | Remaining Tenure: %s months%n",
+                        pls.getLoanName() != null ? pls.getLoanName() : "Unknown",
+                        pls.getLoanAmount() != null ? pls.getLoanAmount().setScale(0, RoundingMode.HALF_UP).longValue() : 0,
+                        pls.getSanctionDate() != null ? pls.getSanctionDate() : "N/A",
+                        pls.getMonthsSinceSanction() != null ? pls.getMonthsSinceSanction() : "N/A",
+                        pls.getRemainingTenureMonths() != null ? pls.getRemainingTenureMonths() : "N/A"
+                ));
+            }
+            writer.write("\n");
         }
     }
 
@@ -234,6 +267,9 @@ public class TextFileService {
             LoanResponse best = result.getRecommendedStrategy();
 
             writer.write(String.format("Strategy: %s%n%n", best.getStrategy()));
+            if (best.getLoanName() != null) {
+                writer.write(String.format("Loan: %s%n\n", best.getLoanName()));
+            }
 
             writer.write("Key Metrics:\n");
             writer.write(String.format("  ✓ Monthly EMI:                  ₹ %,d%n",
@@ -323,14 +359,73 @@ public class TextFileService {
             writer.write(SUB_SEPARATOR + "\n");
 
             for (LoanResponse strategy : result.getAllStrategies()) {
-                String strategyName = truncate(strategy.getStrategy(), 33);
-                long emi = strategy.getEmi().setScale(0, RoundingMode.HALF_UP).longValue();
-                long interestSaved = strategy.getInterestSaved().setScale(0, RoundingMode.HALF_UP).longValue();
-                int tenureReduced = strategy.getTenureReducedMonths();
+                String left = (strategy.getLoanName() != null ? strategy.getLoanName() + " - " : "") + strategy.getStrategy();
+                String strategyName = truncate(left, 33);
+                 long emi = strategy.getEmi().setScale(0, RoundingMode.HALF_UP).longValue();
+                 long interestSaved = strategy.getInterestSaved().setScale(0, RoundingMode.HALF_UP).longValue();
+                 int tenureReduced = strategy.getTenureReducedMonths();
 
-                writer.write(String.format("%-35s | %,15d | %,15d | %d months%n",
-                        strategyName, emi, interestSaved, tenureReduced));
+                 writer.write(String.format("%-35s | %,15d | %,15d | %d months%n",
+                         strategyName, emi, interestSaved, tenureReduced));
+             }
+             writer.write("\n");
+         }
+     }
+
+    private void writeDetailedStrategyAnalysis(OutputStreamWriter writer, StrategyResult result) throws Exception {
+        if (result == null || result.getAllStrategies() == null) return;
+
+        writer.write("💡 DETAILED STRATEGY ANALYSIS\n");
+        writer.write(SUB_SEPARATOR + "\n\n");
+
+        List<LoanResponse> strategies = result.getAllStrategies();
+        List<FinancialSummary.PerLoanSummary> loanSummaries = result.getFinancialSummary() != null ? result.getFinancialSummary().getLoans() : null;
+
+        for (int i = 0; i < strategies.size(); i++) {
+            LoanResponse strategy = strategies.get(i);
+
+            writer.write(String.format("Strategy %d: %s%n", i + 1, strategy.getStrategy()));
+            if (strategy.getLoanName() != null) {
+                writer.write(String.format("  Loan: %s%n", strategy.getLoanName()));
             }
+
+            FinancialSummary.PerLoanSummary matching = null;
+            if (loanSummaries != null && strategy.getLoanName() != null) {
+                for (FinancialSummary.PerLoanSummary pls : loanSummaries) {
+                    if (strategy.getLoanName().equals(pls.getLoanName())) {
+                        matching = pls;
+                        break;
+                    }
+                }
+            }
+
+            if (matching != null) {
+                writer.write(String.format("  Sanction Date: %s | Remaining Tenure: %s months | Months Since Sanction: %s%n",
+                        matching.getSanctionDate() != null ? matching.getSanctionDate() : "N/A",
+                        matching.getRemainingTenureMonths() != null ? matching.getRemainingTenureMonths() : "N/A",
+                        matching.getMonthsSinceSanction() != null ? matching.getMonthsSinceSanction() : "N/A"
+                ));
+            }
+
+            writer.write(SUB_SEPARATOR + "\n");
+
+            writer.write("Financial Impact:\n");
+            writer.write(String.format("  ✓ Monthly EMI:                  ₹ %,d%n",
+                    strategy.getEmi().setScale(0, RoundingMode.HALF_UP).longValue()));
+            writer.write(String.format("  ✓ Total Interest (Normal):      ₹ %,d%n",
+                    strategy.getTotalInterestNormal().setScale(0, RoundingMode.HALF_UP).longValue()));
+            writer.write(String.format("  ✓ Total Interest (With Extra):  ₹ %,d%n",
+                    strategy.getTotalInterestWithExtra().setScale(0, RoundingMode.HALF_UP).longValue()));
+            writer.write(String.format("  ✓ Interest Saved:               ₹ %,d%n",
+                    strategy.getInterestSaved().setScale(0, RoundingMode.HALF_UP).longValue()));
+
+            writer.write("\nTenure Impact:\n");
+            writer.write(String.format("  ✓ Original Tenure:              %d months%n",
+                    strategy.getTenureReducedMonths() > 0 ? calculateOriginalTenure(strategy) : 0));
+            writer.write(String.format("  ✓ Tenure Reduction:             %d months (%d years)%n",
+                    strategy.getTenureReducedMonths(),
+                    strategy.getTenureReducedMonths() / 12));
+
             writer.write("\n");
         }
     }

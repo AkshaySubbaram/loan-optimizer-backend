@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 public class LoanInput {
 
@@ -24,7 +26,10 @@ public class LoanInput {
     @Min(value = 1, message = "Tenure must be at least 1 month")
     private int tenureMonths;
 
-    private Integer priority; // optional (1 = highest)
+    private Integer priority;
+
+    @JsonFormat(pattern = "dd-MM-yyyy")
+    private LocalDate sanctionDate;
 
     public String getLoanName() {
         return loanName;
@@ -64,6 +69,14 @@ public class LoanInput {
 
     public void setPriority(Integer priority) {
         this.priority = priority;
+    }
+
+    public LocalDate getSanctionDate() {
+        return sanctionDate;
+    }
+
+    public void setSanctionDate(LocalDate sanctionDate) {
+        this.sanctionDate = sanctionDate;
     }
 
 }
