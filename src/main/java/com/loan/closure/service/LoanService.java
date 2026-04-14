@@ -22,17 +22,14 @@ public class LoanService {
 
     private static final BigDecimal TWELVE = BigDecimal.valueOf(12);
 
-    // ✅ Internal rounding (2 decimals)
     private BigDecimal round2(BigDecimal value) {
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 
-    // ✅ Final output rounding (₹ style)
     private BigDecimal round0(BigDecimal value) {
         return value.setScale(0, RoundingMode.HALF_UP);
     }
 
-    // 1️⃣ EMI Calculation
     public BigDecimal calculateEMI(BigDecimal principal,
                                    BigDecimal annualRate,
                                    Integer tenureMonths) {
@@ -62,7 +59,6 @@ public class LoanService {
         return emi;
     }
 
-    // 2️⃣ Loan Simulation (FIXED)
     public SimulationResult simulateLoanStrategy(
             BigDecimal principal,
             BigDecimal emi,
@@ -136,7 +132,6 @@ public class LoanService {
         return new SimulationResult(months, totalPaid);
     }
 
-    // 3️⃣ Strategy Calculation
     @Cacheable(
             value = "loanStrategies",
             key = "#req.loanAmount + '-' + #req.interestRate + '-' + #req.tenureMonths + '-' + #req.extraEmi"
@@ -157,7 +152,6 @@ public class LoanService {
                 req.getTenureMonths()
         );
 
-        // ✅ NORMAL CASE FIX (simulation-based)
         SimulationResult normalSim = simulateLoanStrategy(
                 req.getLoanAmount(),
                 emi,
@@ -171,7 +165,6 @@ public class LoanService {
         BigDecimal normalInterest =
                 round2(normalSim.getTotalPaid().subtract(req.getLoanAmount()));
 
-        // Strategy 1: Extra EMI
         List<AmortizationEntry> a1 = includeAmortization ? new ArrayList<>() : null;
 
         SimulationResult r1 = simulateLoanStrategy(
@@ -191,7 +184,6 @@ public class LoanService {
         return strategies;
     }
 
-    // 4️⃣ Response Builder
     private LoanResponse buildResponse(
             SimulationResult result,
             LoanRequest req,
@@ -207,8 +199,6 @@ public class LoanService {
         LoanResponse response = new LoanResponse();
 
         response.setStrategy(strategyName);
-
-        // ✅ FINAL OUTPUT (INTEGER ONLY)
         response.setEmi(round0(emi));
         response.setTotalInterestNormal(round0(normalInterest));
         response.setTotalInterestWithExtra(round0(interestWithStrategy));

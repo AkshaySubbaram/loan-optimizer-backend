@@ -113,7 +113,6 @@ public class StrategyFacadeService {
             return result;
         }
 
-        // Direct Loan Mode
         log.info("Direct loan strategy mode");
 
         List<LoanResponse> strategies =

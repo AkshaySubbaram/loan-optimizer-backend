@@ -20,22 +20,11 @@ public class TextFileService {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              OutputStreamWriter writer = new OutputStreamWriter(baos, StandardCharsets.UTF_8)) {
 
-            // Header Section
             writeHeader(writer);
-
-            // Loan Summary Section
             writeLoanSummary(writer, request);
-
-            // Strategy Comparison Section
             writeStrategyComparison(writer, strategies);
-
-            // Detailed Strategy Analysis
             writeDetailedStrategyAnalysis(writer, strategies);
-
-            // Amortization Schedule (if available)
             writeAmortizationSchedules(writer, strategies);
-
-            // Footer with Disclaimer
             writeFooter(writer);
 
             writer.flush();
@@ -83,7 +72,6 @@ public class TextFileService {
             return;
         }
 
-        // Header for comparison table
         writer.write(String.format("%-30s | %15s | %18s | %18s | %15s%n",
                 "Strategy", "EMI (₹)", "Interest Saved (₹)", "Total Interest (₹)", "Tenure Reduction"));
         writer.write(SUB_SEPARATOR + "\n");
@@ -146,8 +134,6 @@ public class TextFileService {
 
             writer.write(String.format("Strategy %d: %s - Monthly Breakdown%n", i + 1, strategy.getStrategy()));
             writer.write(SUB_SEPARATOR + "\n");
-
-            // Table header
             writer.write(String.format("%-7s | %15s | %15s | %15s | %15s%n",
                     "Month", "Principal (₹)", "Interest (₹)", "Payment (₹)", "Balance (₹)"));
             writer.write(TABLE_SEPARATOR + "\n");
@@ -155,7 +141,6 @@ public class TextFileService {
             List<AmortizationEntry> amortization = strategy.getAmortization();
             int totalMonths = amortization.size();
 
-            // Show first 12 months
             for (int j = 0; j < Math.min(12, totalMonths); j++) {
                 AmortizationEntry entry = amortization.get(j);
                 long principal = entry.getPrincipalPaid().setScale(0, RoundingMode.HALF_UP).longValue();
@@ -167,13 +152,11 @@ public class TextFileService {
                         entry.getMonth(), principal, interest, payment, balance));
             }
 
-            // Show summary for remaining months if more than 12
             if (totalMonths > 12) {
                 writer.write(TABLE_SEPARATOR + "\n");
                 writer.write(String.format("... [%d months omitted for brevity] ...%n", totalMonths - 12));
                 writer.write(TABLE_SEPARATOR + "\n");
 
-                // Show last month
                 AmortizationEntry lastEntry = amortization.get(totalMonths - 1);
                 long principal = lastEntry.getPrincipalPaid().setScale(0, RoundingMode.HALF_UP).longValue();
                 long interest = lastEntry.getInterestPaid().setScale(0, RoundingMode.HALF_UP).longValue();
@@ -206,7 +189,6 @@ public class TextFileService {
     }
 
     private int calculateOriginalTenure(LoanResponse strategy) {
-        // This would need the original tenure from context, using a safe estimate
         return strategy.getTenureReducedMonths() > 0 ?
                strategy.getTenureReducedMonths() + (strategy.getTenureReducedMonths() / 5) : 0;
     }
@@ -222,7 +204,6 @@ public class TextFileService {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              OutputStreamWriter writer = new OutputStreamWriter(baos, StandardCharsets.UTF_8)) {
 
-            // Header
             writer.write("\n");
             writer.write(SEPARATOR + "\n");
             writer.write("                     PERSONALIZED LOAN CLOSURE STRATEGY REPORT\n");
@@ -230,22 +211,11 @@ public class TextFileService {
             writer.write("Generated Date: " + LocalDate.now() + "\n");
             writer.write("Report Type: Income-Based Strategy Analysis\n\n");
 
-            // Recommendation Section
             writeRecommendationSection(writer, strategyResult);
-
-            // Reasoning Section
             writeReasoningSection(writer, strategyResult);
-
-            // Advice Section
             writeAdviceSection(writer, strategyResult);
-
-            // Loan Priority Section
             writeLoanPrioritySection(writer, strategyResult);
-
-            // All Strategies Comparison
             writeAllStrategiesComparison(writer, strategyResult);
-
-            // Footer
             writeFooter(writer);
 
             writer.flush();
@@ -364,4 +334,5 @@ public class TextFileService {
             writer.write("\n");
         }
     }
+
 }

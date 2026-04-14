@@ -26,8 +26,11 @@ import java.util.List;
 public class PdfFileService {
 
     private static final float FONT_SIZE_HEADER = 20f;
+
     private static final float FONT_SIZE_SUBTITLE = 12f;
+
     private static final float FONT_SIZE_NORMAL = 10f;
+
     private static final float FONT_SIZE_SMALL = 9f;
 
     public byte[] generateLoanPdfReport(List<LoanResponse> strategies, LoanRequest request) {
@@ -36,22 +39,11 @@ public class PdfFileService {
             PdfDocument pdfDoc = new PdfDocument(writer);
             Document document = new Document(pdfDoc);
 
-            // Header
             addHeader(document);
-
-            // Loan Summary
             addLoanSummary(document, request);
-
-            // Strategy Comparison Table
             addStrategyComparison(document, strategies);
-
-            // Detailed Strategy Analysis
             addDetailedStrategyAnalysis(document, strategies);
-
-            // Amortization Schedules
             addAmortizationSchedules(document, strategies);
-
-            // Footer with Disclaimer
             addFooter(document);
 
             document.close();
@@ -68,25 +60,12 @@ public class PdfFileService {
             PdfDocument pdfDoc = new PdfDocument(writer);
             Document document = new Document(pdfDoc);
 
-            // Header
             addPdfHeader(document, "PERSONALIZED LOAN CLOSURE STRATEGY REPORT");
-
-            // Recommendation Section
             addRecommendationSection(document, strategyResult);
-
-            // Reasoning Section
             addReasoningSection(document, strategyResult);
-
-            // Advice Section
             addAdviceSection(document, strategyResult);
-
-            // Loan Priority Section
             addLoanPrioritySection(document, strategyResult);
-
-            // All Strategies Comparison
             addAllStrategiesComparison(document, strategyResult);
-
-            // Footer
             addFooter(document);
 
             document.close();
@@ -532,4 +511,5 @@ public class PdfFileService {
         }
         return str.length() > length ? str.substring(0, length - 3) + "..." : str;
     }
+
 }

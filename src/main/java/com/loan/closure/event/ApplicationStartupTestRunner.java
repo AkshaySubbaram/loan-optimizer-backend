@@ -12,16 +12,6 @@ import org.springframework.beans.factory.annotation.Value;
 import java.math.BigDecimal;
 import java.util.List;
 
-/**
- * ApplicationStartupTestRunner
- *
- * Automatically runs integration tests when the application starts.
- * This verifies that all services are working correctly before accepting requests.
- *
- * Controlled by properties:
- *   app.startup-tests.enabled=true        - Enable/disable tests
- *   app.startup-tests.fail-on-error=true  - Fail app if tests fail
- */
 @Component
 public class ApplicationStartupTestRunner {
 
@@ -42,7 +32,7 @@ public class ApplicationStartupTestRunner {
 
     @EventListener(ApplicationReadyEvent.class)
     public void runIntegrationTests() {
-        // Check if tests are enabled
+
         if (!testsEnabled) {
             log.info("⏭️  Application startup integration tests are DISABLED (app.startup-tests.enabled=false)");
             return;
@@ -53,16 +43,9 @@ public class ApplicationStartupTestRunner {
         log.info(SEPARATOR + "\n");
 
         try {
-            // Test 1: Income-based Strategy
             testIncomeBasedStrategy();
-
-            // Test 2: Direct Loan Mode
             testDirectLoanMode();
-
-            // Test 3: Error Handling
             testErrorHandling();
-
-            // Test 4: Multiple Loans
             testMultipleLoans();
 
             log.info("\n" + SEPARATOR);
@@ -76,7 +59,6 @@ public class ApplicationStartupTestRunner {
             log.error("Error: ", e);
             log.error(SEPARATOR);
 
-            // Check if we should fail on error
             if (failOnError) {
                 log.error("Application startup failed (app.startup-tests.fail-on-error=true)");
                 throw new RuntimeException("Integration tests failed during startup", e);
@@ -86,9 +68,7 @@ public class ApplicationStartupTestRunner {
         }
     }
 
-    /**
-     * Test 1: Income-based Strategy Calculation
-     */
+
     private void testIncomeBasedStrategy() {
         log.info("📋 Test 1: Income-Based Strategy Calculation...");
 
@@ -112,9 +92,6 @@ public class ApplicationStartupTestRunner {
         log.info("      - Number of Strategies: {}\n", result.getAllStrategies().size());
     }
 
-    /**
-     * Test 2: Direct Loan Mode Calculation
-     */
     private void testDirectLoanMode() {
         log.info("📋 Test 2: Direct Loan Mode Calculation...");
 
@@ -132,9 +109,6 @@ public class ApplicationStartupTestRunner {
         log.info("      - Number of Strategies: {}\n", result.getAllStrategies().size());
     }
 
-    /**
-     * Test 3: Error Handling (Negative Disposable Income)
-     */
     private void testErrorHandling() {
         log.info("📋 Test 3: Error Handling (Negative Disposable Income)...");
 
@@ -156,15 +130,11 @@ public class ApplicationStartupTestRunner {
         }
     }
 
-    /**
-     * Test 4: Multiple Loans Handling
-     */
     private void testMultipleLoans() {
         log.info("📋 Test 4: Multiple Loans Handling...");
 
         ExpenseRequest req = buildExpenseRequest();
 
-        // Add second loan
         LoanInput loan2 = new LoanInput();
         loan2.setLoanName("Car Loan");
         loan2.setLoanAmount(BigDecimal.valueOf(200000));
@@ -189,9 +159,6 @@ public class ApplicationStartupTestRunner {
         log.info("      - Loan Priority Count: {}\n", result.getLoanPriority().size());
     }
 
-    /**
-     * Helper: Build Expense Request for Testing
-     */
     private ExpenseRequest buildExpenseRequest() {
         ExpenseItem rent = new ExpenseItem();
         rent.setName("Rent");
@@ -220,9 +187,6 @@ public class ApplicationStartupTestRunner {
         return req;
     }
 
-    /**
-     * Helper: Build Loan Request for Testing
-     */
     private LoanRequest buildLoanRequest() {
         LoanRequest req = new LoanRequest();
         req.setLoanAmount(BigDecimal.valueOf(500000));
@@ -231,5 +195,6 @@ public class ApplicationStartupTestRunner {
         req.setExtraEmi(BigDecimal.valueOf(2000));
         return req;
     }
+
 }
 
