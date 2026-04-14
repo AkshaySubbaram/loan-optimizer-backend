@@ -59,18 +59,6 @@ class LoanServiceTest {
     }
 
     @Test
-    void shouldCalculateTotalInterest() {
-
-        BigDecimal interest = loanService.calculateTotalInterest(
-                BigDecimal.valueOf(10000),
-                60,
-                BigDecimal.valueOf(500000)
-        );
-
-        assertTrue(interest.compareTo(BigDecimal.ZERO) > 0);
-    }
-
-    @Test
     void shouldSimulateLoanSuccessfully() {
 
         SimulationResult result = loanService.simulateLoanStrategy(

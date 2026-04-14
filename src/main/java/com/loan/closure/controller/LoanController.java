@@ -1,5 +1,6 @@
 package com.loan.closure.controller;
 
+import com.loan.closure.download.PdfFileService;
 import com.loan.closure.download.TextFileService;
 import com.loan.closure.entity.LoanRequest;
 import com.loan.closure.entity.LoanResponse;
@@ -27,24 +28,28 @@ public class LoanController {
 
     private final StrategyFacadeService strategyFacadeService;
 
-    public LoanController(LoanService loanService, TextFileService textFileService, StrategyFacadeService strategyFacadeService) {
+    private final PdfFileService pdfFileService;
+
+    public LoanController(LoanService loanService, TextFileService textFileService,
+                          StrategyFacadeService strategyFacadeService, PdfFileService pdfFileService) {
         this.loanService = loanService;
         this.textFileService = textFileService;
         this.strategyFacadeService = strategyFacadeService;
+        this.pdfFileService = pdfFileService;
     }
 
     @PostMapping("/summary")
-    public List<LoanResponse> getLoanSummary(@RequestBody LoanRequest request) {
+    public List<LoanResponse> getLoanSummary(@Valid @RequestBody LoanRequest request) {
         return loanService.calculateAllStrategies(request, false); // no amortization yet
     }
 
     @PostMapping("/amortization")
-    public List<LoanResponse> getAllAmortizations(@RequestBody LoanRequest request) {
+    public List<LoanResponse> getAllAmortizations(@Valid @RequestBody LoanRequest request) {
         return loanService.calculateAllStrategies(request, true);
     }
 
     @PostMapping("/download")
-    public ResponseEntity<byte[]> downloadTextFile(@RequestBody LoanRequest request) {
+    public ResponseEntity<byte[]> downloadTextFile(@Valid @RequestBody LoanRequest request) {
         List<LoanResponse> strategies = loanService.calculateAllStrategies(request, true);
         
         byte[] fileBytes = textFileService.generateLoanTextFile(strategies, request);
@@ -58,6 +63,42 @@ public class LoanController {
     @PostMapping("/strategy")
     public StrategyResult calculateStrategy(@Valid @RequestBody StrategyRequest request) {
         return strategyFacadeService.calculateStrategy(request);
+    }
+
+    @PostMapping("/strategy/download")
+    public ResponseEntity<byte[]> downloadStrategyReport(@Valid @RequestBody StrategyRequest request) {
+        StrategyResult strategyResult = strategyFacadeService.calculateStrategy(request);
+
+        byte[] fileBytes = textFileService.generateStrategyReport(strategyResult);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=loan_strategy_report.txt")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(fileBytes);
+    }
+
+    @PostMapping("/download/pdf")
+    public ResponseEntity<byte[]> downloadLoanPdf(@Valid @RequestBody LoanRequest request) {
+        List<LoanResponse> strategies = loanService.calculateAllStrategies(request, true);
+
+        byte[] fileBytes = pdfFileService.generateLoanPdfReport(strategies, request);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=loan_report.pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(fileBytes);
+    }
+
+    @PostMapping("/strategy/download/pdf")
+    public ResponseEntity<byte[]> downloadStrategyPdf(@Valid @RequestBody StrategyRequest request) {
+        StrategyResult strategyResult = strategyFacadeService.calculateStrategy(request);
+
+        byte[] fileBytes = pdfFileService.generateStrategyPdfReport(strategyResult);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=loan_strategy_report.pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(fileBytes);
     }
 
 }
