@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public class LoanRequest  {
@@ -32,6 +33,11 @@ public class LoanRequest  {
     private List<Integer> partPaymentMonths;
 
     private boolean includeAmortization;
+
+    @JsonFormat(pattern = "dd-MM-yyyy")
+    private LocalDate sanctionDate;
+
+    private String loanName;
 
     public BigDecimal getLoanAmount() {
         return loanAmount;
@@ -87,6 +93,22 @@ public class LoanRequest  {
 
     public void setPartPayments(List<BigDecimal> partPayments) {
         this.partPayments = partPayments;
+    }
+
+    public LocalDate getSanctionDate() {
+        return sanctionDate;
+    }
+
+    public void setSanctionDate(LocalDate sanctionDate) {
+        this.sanctionDate = sanctionDate;
+    }
+
+    public String getLoanName() {
+        return loanName;
+    }
+
+    public void setLoanName(String loanName) {
+        this.loanName = loanName;
     }
 
     public boolean hasPartPayments() {

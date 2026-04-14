@@ -13,6 +13,7 @@ import static org.mockito.Mockito.*;
 class ExpenseStrategyServiceTest {
 
     private LoanService loanService;
+
     private ExpenseStrategyService service;
 
     @BeforeEach
@@ -36,9 +37,9 @@ class ExpenseStrategyServiceTest {
         assertFalse(result.isEmpty());
     }
 
-    // ✅ 2. Disposable <= 0 → should fail
+    // ✅ 2. Disposable <= 0 → should handle gracefully (no exception)
     @Test
-    void shouldThrowWhenDisposableNegative() {
+    void shouldHandleNegativeDisposableGracefully() {
 
         ExpenseRequest req = TestDataFactory.sampleExpenseRequest();
 
@@ -47,8 +48,11 @@ class ExpenseStrategyServiceTest {
         when(loanService.calculateEMI(any(), any(), any()))
                 .thenReturn(new BigDecimal("20000"));
 
-        assertThrows(RuntimeException.class,
-                () -> service.buildLoanRequestsFromExpense(req));
+        List<LoanRequest> result = assertDoesNotThrow(
+                () -> service.buildLoanRequestsFromExpense(req)
+        );
+
+        assertNotNull(result);
     }
 
     // ✅ 3. No expenses
@@ -93,13 +97,11 @@ class ExpenseStrategyServiceTest {
 
         List<LoanRequest> result = service.buildLoanRequestsFromExpense(req);
 
-        // Monthly emergency contribution = (120000 - 0) / 12 = 10,000
-        // This reduces disposable income, affecting extra EMI allocation
         assertNotNull(result);
         assertFalse(result.isEmpty(), "Should generate loan requests");
 
-        // Verify that extra EMI is calculated considering emergency fund contribution
         LoanRequest lr = result.get(0);
+
         assertNotNull(lr.getExtraEmi());
         assertTrue(lr.getExtraEmi().compareTo(BigDecimal.ZERO) > 0,
                 "Extra EMI should be allocated after emergency fund contribution");
@@ -126,7 +128,7 @@ class ExpenseStrategyServiceTest {
 
         ExpenseRequest req = TestDataFactory.sampleExpenseRequest();
         req.setGoal("LOW_EMI");
-        req.setRiskProfile("MEDIUM");  // Set explicitly for clarity
+        req.setRiskProfile("MEDIUM");
 
         when(loanService.calculateEMI(any(), any(), any()))
                 .thenReturn(new BigDecimal("10000"));
@@ -136,10 +138,6 @@ class ExpenseStrategyServiceTest {
         assertNotNull(result);
         assertFalse(result.isEmpty());
 
-        // For LOW_EMI + MEDIUM risk: extraEmiRatio = 0.2 (20%)
-        // This means extra EMI should be significantly lower
-        // Disposable = 100,000 - 30,000 (expenses) - 20,000 (EMI) - ~667 (emergency) ≈ 49,333
-        // Extra EMI at 20% = ~9,866
         LoanRequest lr = result.get(0);
         assertTrue(lr.getExtraEmi().compareTo(new BigDecimal("15000")) < 0,
                 "LOW_EMI goal should allocate at most 30% of disposable income");
@@ -169,8 +167,6 @@ class ExpenseStrategyServiceTest {
     void shouldSortLoansByInterestRate() {
 
         ExpenseRequest req = TestDataFactory.sampleExpenseRequest();
-        // Sample data has: Home @ 9%, Car @ 12%
-        // After sorting (descending): Car (12%) should be first
 
         when(loanService.calculateEMI(any(), any(), any()))
                 .thenReturn(new BigDecimal("10000"));
@@ -180,11 +176,7 @@ class ExpenseStrategyServiceTest {
         assertNotNull(result);
         assertFalse(result.isEmpty());
 
-        // TestDataFactory has Car Loan @ 12% interest rate
-        // Loans should be sorted by interest rate descending (highest first)
-        // Verify by checking the order of results
         if (result.size() >= 2) {
-            // Car Loan (higher rate) should be prioritized first in allocations
             LoanRequest firstLoan = result.get(0);
             assertTrue(firstLoan.getExtraEmi().compareTo(BigDecimal.ZERO) > 0,
                     "Highest interest loan should get extra EMI allocation");

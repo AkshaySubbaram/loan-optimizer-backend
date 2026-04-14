@@ -16,6 +16,7 @@ import java.util.List;
 public class ApplicationStartupTestRunner {
 
     private static final Logger log = LoggerFactory.getLogger(ApplicationStartupTestRunner.class);
+
     private static final String SEPARATOR = "═══════════════════════════════════════════════════════════════════════════";
 
     private final StrategyFacadeService strategyFacadeService;
@@ -68,7 +69,6 @@ public class ApplicationStartupTestRunner {
         }
     }
 
-
     private void testIncomeBasedStrategy() {
         log.info("📋 Test 1: Income-Based Strategy Calculation...");
 
@@ -120,14 +120,19 @@ public class ApplicationStartupTestRunner {
 
         request.setExpenseRequest(exp);
 
-        try {
-            strategyFacadeService.calculateStrategy(request);
-            assert false : "Should have thrown RuntimeException for negative disposable income";
-        } catch (RuntimeException e) {
-            assert e.getMessage().contains("Expenses") : "Error message should mention expenses";
-            log.info("   ✅ Error handling test PASSED");
-            log.info("      - Expected exception caught: {}\n", e.getMessage());
-        }
+        // New behavior: negative disposable is handled gracefully (sets to zero), no exception thrown
+        StrategyResult result = strategyFacadeService.calculateStrategy(request);
+
+        assert result != null : "Result should not be null even with negative disposable";
+        assert result.getFinancialSummary() != null : "Financial summary should not be null";
+
+        // Disposable income should be zero or handled gracefully
+        BigDecimal disposable = result.getFinancialSummary().getDisposableIncome();
+        assert disposable != null : "Disposable income should not be null";
+        assert disposable.compareTo(BigDecimal.ZERO) <= 0 : "Disposable income should be zero or negative (indicating tight budget)";
+
+        log.info("   ✅ Error handling test PASSED");
+        log.info("      - Handled negative disposable gracefully: ₹{}\n", disposable);
     }
 
     private void testMultipleLoans() {

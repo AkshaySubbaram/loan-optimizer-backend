@@ -22,6 +22,16 @@ public class LoanResponse {
 
     private List<AmortizationEntry> amortization;
 
+    private String loanName;
+
+    private java.math.BigDecimal extraEmi;
+
+    private java.math.BigDecimal suggestedMonthlyWithExtra;
+
+    private java.util.List<java.math.BigDecimal> partPayments;
+
+    private java.util.List<Integer> partPaymentMonths;
+
     public BigDecimal getEmi() {
         return emi;
     }
@@ -76,6 +86,46 @@ public class LoanResponse {
 
     public void setAmortization(List<AmortizationEntry> amortization) {
         this.amortization = amortization;
+    }
+
+    public String getLoanName() {
+        return loanName;
+    }
+
+    public void setLoanName(String loanName) {
+        this.loanName = loanName;
+    }
+
+    public java.math.BigDecimal getExtraEmi() {
+        return extraEmi;
+    }
+
+    public void setExtraEmi(java.math.BigDecimal extraEmi) {
+        this.extraEmi = extraEmi;
+    }
+
+    public java.math.BigDecimal getSuggestedMonthlyWithExtra() {
+        return suggestedMonthlyWithExtra;
+    }
+
+    public void setSuggestedMonthlyWithExtra(java.math.BigDecimal suggestedMonthlyWithExtra) {
+        this.suggestedMonthlyWithExtra = suggestedMonthlyWithExtra;
+    }
+
+    public java.util.List<java.math.BigDecimal> getPartPayments() {
+        return partPayments;
+    }
+
+    public void setPartPayments(java.util.List<java.math.BigDecimal> partPayments) {
+        this.partPayments = partPayments;
+    }
+
+    public java.util.List<Integer> getPartPaymentMonths() {
+        return partPaymentMonths;
+    }
+
+    public void setPartPaymentMonths(java.util.List<Integer> partPaymentMonths) {
+        this.partPaymentMonths = partPaymentMonths;
     }
 
 }

@@ -15,6 +15,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import java.util.HashMap;
 import java.util.Map;
+import com.loan.closure.exception.LoanCompletedException;
 
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @ControllerAdvice
@@ -37,6 +38,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleIllegalArgument(IllegalArgumentException ex) {
         Map<String, String> body = new HashMap<>();
         body.put("error", ex.getMessage());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(LoanCompletedException.class)
+    @ResponseBody
+    public ResponseEntity<Object> handleLoanCompleted(LoanCompletedException ex) {
+        Map<String, String> body = new HashMap<>();
+        body.put("error", ex.getMessage());
+        body.put("code", "LOAN_COMPLETED");
         return ResponseEntity.badRequest().body(body);
     }
 

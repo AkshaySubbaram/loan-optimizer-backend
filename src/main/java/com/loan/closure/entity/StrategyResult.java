@@ -4,6 +4,8 @@ import java.util.List;
 
 public class StrategyResult {
 
+    private FinancialSummary financialSummary;
+
     private LoanResponse recommendedStrategy;
 
     private String reason;
@@ -13,6 +15,14 @@ public class StrategyResult {
     private StrategyAdvice advice;
 
     private List<String> loanPriority;
+
+    public FinancialSummary getFinancialSummary() {
+        return financialSummary;
+    }
+
+    public void setFinancialSummary(FinancialSummary financialSummary) {
+        this.financialSummary = financialSummary;
+    }
 
     public List<String> getLoanPriority() {
         return loanPriority;
