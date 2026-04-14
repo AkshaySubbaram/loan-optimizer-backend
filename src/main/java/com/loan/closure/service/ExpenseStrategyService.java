@@ -148,7 +148,6 @@ public class ExpenseStrategyService {
         for (int i = 0; i < loanCount; i++) {
 
             LoanInput loan = sortedLoans.get(i);
-
             BigDecimal loanExtraEmi;
 
             if (i == 0) {
